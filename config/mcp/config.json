@@ -1,0 +1,392 @@
+{
+  "version": "1.0",
+  "name": "hMailServer MCP Configuration",
+  "description": "Model Context Protocol configuration for hMailServer AI integration",
+  
+  "models": {
+    "local": {
+      "hmailserver-classifier": {
+        "name": "hMailServer Email Classifier",
+        "type": "local",
+        "provider": "hMailServer",
+        "version": "1.0.0",
+        "path": "/var/lib/hmailserver/models/classifier.onnx",
+        "capabilities": [
+          "email_classification",
+          "spam_detection",
+          "priority_scoring"
+        ],
+        "parameters": {
+          "max_tokens": 2048,
+          "temperature": 0.3,
+          "top_p": 0.9
+        },
+        "preprocessing": {
+          "tokenizer": "bert-base-uncased",
+          "max_length": 512,
+          "truncation": true
+        }
+      },
+      
+      "sentiment-analyzer": {
+        "name": "Email Sentiment Analyzer",
+        "type": "local",
+        "provider": "hMailServer",
+        "version": "1.0.0",
+        "path": "/var/lib/hmailserver/models/sentiment.onnx",
+        "capabilities": [
+          "sentiment_analysis",
+          "emotion_detection",
+          "tone_analysis"
+        ],
+        "parameters": {
+          "confidence_threshold": 0.7
+        }
+      }
+    },
+    
+    "remote": {
+      "openai-gpt4": {
+        "name": "OpenAI GPT-4",
+        "type": "remote",
+        "provider": "OpenAI",
+        "version": "gpt-4",
+        "endpoint": "https://api.openai.com/v1/chat/completions",
+        "capabilities": [
+          "text_generation",
+          "text_analysis",
+          "summarization",
+          "translation",
+          "intent_recognition",
+          "response_generation"
+        ],
+        "authentication": {
+          "type": "bearer",
+          "key_env": "OPENAI_API_KEY"
+        },
+        "parameters": {
+          "max_tokens": 4096,
+          "temperature": 0.7,
+          "top_p": 0.95,
+          "frequency_penalty": 0.0,
+          "presence_penalty": 0.0
+        },
+        "rate_limits": {
+          "requests_per_minute": 60,
+          "tokens_per_minute": 40000
+        }
+      },
+      
+      "anthropic-claude": {
+        "name": "Anthropic Claude-3 Opus",
+        "type": "remote",
+        "provider": "Anthropic",
+        "version": "claude-3-opus-20240229",
+        "endpoint": "https://api.anthropic.com/v1/messages",
+        "capabilities": [
+          "text_analysis",
+          "summarization",
+          "translation",
+          "security_analysis",
+          "response_generation"
+        ],
+        "authentication": {
+          "type": "api_key",
+          "key_env": "ANTHROPIC_API_KEY"
+        },
+        "parameters": {
+          "max_tokens": 4096,
+          "temperature": 0.5
+        },
+        "rate_limits": {
+          "requests_per_minute": 50,
+          "tokens_per_minute": 40000
+        }
+      },
+      
+      "azure-openai": {
+        "name": "Azure OpenAI GPT-4",
+        "type": "remote",
+        "provider": "Microsoft Azure",
+        "version": "gpt-4",
+        "endpoint": "https://{resource}.openai.azure.com/openai/deployments/{deployment}/chat/completions?api-version=2024-02-15-preview",
+        "capabilities": [
+          "text_generation",
+          "text_analysis",
+          "summarization",
+          "translation"
+        ],
+        "authentication": {
+          "type": "api_key",
+          "key_env": "AZURE_OPENAI_API_KEY"
+        },
+        "parameters": {
+          "max_tokens": 4096,
+          "temperature": 0.7
+        }
+      }
+    }
+  },
+  
+  "ensembles": {
+    "spam-detection": {
+      "name": "Multi-Model Spam Detection",
+      "description": "Combines multiple models for enhanced spam detection accuracy",
+      "models": [
+        "hmailserver-classifier",
+        "openai-gpt4"
+      ],
+      "strategy": "weighted_average",
+      "weights": {
+        "hmailserver-classifier": 0.7,
+        "openai-gpt4": 0.3
+      },
+      "confidence_threshold": 0.8
+    },
+    
+    "email-analysis": {
+      "name": "Comprehensive Email Analysis",
+      "description": "Full email analysis using multiple specialized models",
+      "models": [
+        "hmailserver-classifier",
+        "sentiment-analyzer",
+        "anthropic-claude"
+      ],
+      "strategy": "parallel",
+      "combine_results": true
+    },
+    
+    "response-generation": {
+      "name": "Smart Response Generation",
+      "description": "Generates contextually appropriate email responses",
+      "models": [
+        "openai-gpt4",
+        "anthropic-claude"
+      ],
+      "strategy": "best_of_n",
+      "selection_criteria": "relevance_score"
+    }
+  },
+  
+  "contexts": {
+    "global": {
+      "name": "Global Email Context",
+      "description": "Shared context for all email processing",
+      "retention_hours": 24,
+      "max_size_mb": 100,
+      "fields": [
+        "user_preferences",
+        "communication_patterns",
+        "security_context",
+        "recent_interactions"
+      ]
+    },
+    
+    "user": {
+      "name": "User-Specific Context",
+      "description": "Individual user context and preferences",
+      "retention_days": 30,
+      "max_size_mb": 50,
+      "fields": [
+        "personal_preferences",
+        "communication_style",
+        "frequent_contacts",
+        "response_patterns",
+        "security_profile"
+      ]
+    },
+    
+    "thread": {
+      "name": "Email Thread Context",
+      "description": "Context for email conversation threads",
+      "retention_days": 7,
+      "max_size_mb": 20,
+      "fields": [
+        "thread_participants",
+        "conversation_history",
+        "sentiment_progression",
+        "action_items",
+        "key_topics"
+      ]
+    }
+  },
+  
+  "processing_pipelines": {
+    "incoming_email": {
+      "name": "Incoming Email Processing Pipeline",
+      "description": "Standard pipeline for processing incoming emails",
+      "stages": [
+        {
+          "name": "security_scan",
+          "model": "hmailserver-classifier",
+          "timeout_ms": 5000,
+          "required": true,
+          "on_failure": "quarantine"
+        },
+        {
+          "name": "spam_detection",
+          "ensemble": "spam-detection",
+          "timeout_ms": 10000,
+          "required": true,
+          "on_failure": "mark_suspicious"
+        },
+        {
+          "name": "classification",
+          "model": "hmailserver-classifier",
+          "timeout_ms": 3000,
+          "required": false,
+          "on_failure": "continue"
+        },
+        {
+          "name": "sentiment_analysis",
+          "model": "sentiment-analyzer",
+          "timeout_ms": 2000,
+          "required": false,
+          "on_failure": "continue"
+        },
+        {
+          "name": "context_update",
+          "action": "update_user_context",
+          "timeout_ms": 1000,
+          "required": false
+        }
+      ]
+    },
+    
+    "outgoing_email": {
+      "name": "Outgoing Email Processing Pipeline",
+      "description": "Pipeline for processing outgoing emails",
+      "stages": [
+        {
+          "name": "content_analysis",
+          "model": "sentiment-analyzer",
+          "timeout_ms": 3000,
+          "required": false
+        },
+        {
+          "name": "security_check",
+          "model": "hmailserver-classifier",
+          "timeout_ms": 2000,
+          "required": true,
+          "on_failure": "block"
+        },
+        {
+          "name": "enhancement_suggestions",
+          "model": "openai-gpt4",
+          "timeout_ms": 8000,
+          "required": false,
+          "parameters": {
+            "suggest_improvements": true,
+            "check_tone": true
+          }
+        }
+      ]
+    },
+    
+    "response_generation": {
+      "name": "Automated Response Generation",
+      "description": "Pipeline for generating automated email responses",
+      "stages": [
+        {
+          "name": "context_analysis",
+          "ensemble": "email-analysis",
+          "timeout_ms": 15000,
+          "required": true
+        },
+        {
+          "name": "response_generation",
+          "ensemble": "response-generation",
+          "timeout_ms": 20000,
+          "required": true
+        },
+        {
+          "name": "quality_check",
+          "model": "anthropic-claude",
+          "timeout_ms": 5000,
+          "required": true,
+          "parameters": {
+            "check_appropriateness": true,
+            "verify_accuracy": true
+          }
+        }
+      ]
+    }
+  },
+  
+  "security": {
+    "encryption": {
+      "enable_context_encryption": true,
+      "encryption_algorithm": "AES-256-GCM",
+      "key_rotation_hours": 24
+    },
+    
+    "privacy": {
+      "data_anonymization": true,
+      "pii_detection": true,
+      "data_retention_days": 90,
+      "gdpr_compliance": true
+    },
+    
+    "access_control": {
+      "api_key_required": true,
+      "rate_limiting": true,
+      "audit_logging": true,
+      "ip_whitelist": []
+    }
+  },
+  
+  "monitoring": {
+    "metrics": {
+      "enable_detailed_metrics": true,
+      "metrics_retention_days": 30,
+      "export_prometheus": true
+    },
+    
+    "logging": {
+      "log_level": "info",
+      "log_requests": true,
+      "log_responses": false,
+      "log_errors": true,
+      "log_performance": true
+    },
+    
+    "alerting": {
+      "enable_alerts": true,
+      "alert_thresholds": {
+        "error_rate_percent": 5,
+        "response_time_ms": 30000,
+        "queue_size": 1000
+      },
+      "notification_webhook": ""
+    }
+  },
+  
+  "performance": {
+    "caching": {
+      "enable_response_caching": true,
+      "cache_ttl_seconds": 300,
+      "max_cache_size_mb": 500
+    },
+    
+    "optimization": {
+      "batch_processing": true,
+      "max_batch_size": 10,
+      "parallel_processing": true,
+      "max_parallel_requests": 5
+    },
+    
+    "resource_limits": {
+      "max_memory_mb": 2048,
+      "max_cpu_percent": 80,
+      "request_timeout_ms": 60000
+    }
+  },
+  
+  "fallback": {
+    "enable_fallback": true,
+    "fallback_model": "hmailserver-classifier",
+    "fallback_on_timeout": true,
+    "fallback_on_error": true,
+    "graceful_degradation": true
+  }
+}

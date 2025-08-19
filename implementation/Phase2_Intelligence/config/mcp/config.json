@@ -1,0 +1,24 @@
+{
+    "name": "hMailServer-MCP",
+    "version": "1.0.0",
+    "description": "Model Context Protocol configuration for hMailServer Phase 2",
+    "servers": {
+        "email_intelligence": {
+            "command": "python",
+            "args": ["-m", "mcp.server"],
+            "env": {
+                "PYTHONPATH": "../../Phase1_Foundation"
+            }
+        }
+    },
+    "clients": {
+        "default": {
+            "timeout": 30,
+            "max_retries": 3
+        }
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "mcp.log"
+    }
+}
