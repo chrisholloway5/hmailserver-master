@@ -1,0 +1,445 @@
+# hMailServer Production Integration - Docker Compose Configuration
+# Complete production deployment with all Phase 1-4 components integrated
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  database:
+    image: postgres:17-alpine
+    container_name: hmailserver-database
+    environment:
+      POSTGRES_DB: hmailserver
+      POSTGRES_USER: hmailserver
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-hmailserver123}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - database-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - hmailserver-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hmailserver -d hmailserver"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: hmailserver-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - hmailserver-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # C++ Core Engine (Phase 1)
+  core-engine:
+    build:
+      context: ../Phase1_Foundation
+      dockerfile: Dockerfile.production
+      args:
+        BUILD_TYPE: Release
+        CMAKE_BUILD_PARALLEL_LEVEL: 4
+    container_name: hmailserver-core
+    environment:
+      - CONFIG_PATH=/app/config
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://hmailserver:${DB_PASSWORD:-hmailserver123}@database:5432/hmailserver
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      - GRPC_PORT=50051
+      - ENABLE_METRICS=true
+      - ENABLE_TRACING=true
+    volumes:
+      - ../config:/app/config:ro
+      - core-data:/app/data
+      - core-logs:/app/logs
+    ports:
+      - "50051:50051"
+      - "9090:9090"  # Metrics port
+    networks:
+      - hmailserver-network
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/app/bin/grpc_health_probe", "-addr=:50051"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # Python AI Services (Phase 2)
+  ai-services:
+    build:
+      context: ../Phase2_Intelligence
+      dockerfile: Dockerfile.production
+      args:
+        PYTHON_VERSION: 3.13
+        TORCH_VERSION: 2.5.0
+    container_name: hmailserver-ai
+    environment:
+      - CORE_SERVICE_URL=core-engine:50051
+      - MODEL_CACHE_DIR=/app/models
+      - HUGGINGFACE_CACHE_DIR=/app/cache/huggingface
+      - TORCH_CACHE_DIR=/app/cache/torch
+      - LOG_LEVEL=INFO
+      - PYTHONUNBUFFERED=1
+      - MAX_WORKERS=4
+      - GPU_ENABLED=false
+      - ENABLE_METRICS=true
+    volumes:
+      - ai-models:/app/models
+      - ai-cache:/app/cache
+      - ai-logs:/app/logs
+    ports:
+      - "50052:50052"
+      - "9091:9091"  # Metrics port
+    networks:
+      - hmailserver-network
+    depends_on:
+      core-engine:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:50052/health').raise_for_status()"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 120s  # AI models take time to load
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '3.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+
+  # Autonomous Operations Service (Phase 3)
+  autonomous-service:
+    build:
+      context: ../Phase3_Autonomous
+      dockerfile: Dockerfile.production
+    container_name: hmailserver-autonomous
+    environment:
+      - CORE_SERVICE_URL=core-engine:50051
+      - AI_SERVICE_URL=ai-services:50052
+      - DATABASE_URL=postgresql://hmailserver:${DB_PASSWORD:-hmailserver123}@database:5432/hmailserver
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/1
+      - LOG_LEVEL=INFO
+      - ENABLE_SELF_HEALING=true
+      - ENABLE_PREDICTIVE_SCALING=true
+      - MONITORING_INTERVAL=30
+    volumes:
+      - autonomous-data:/app/data
+      - autonomous-logs:/app/logs
+    ports:
+      - "50053:50053"
+      - "9092:9092"  # Metrics port
+    networks:
+      - hmailserver-network
+    depends_on:
+      core-engine:
+        condition: service_healthy
+      ai-services:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:50053/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # .NET API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+      args:
+        DOTNET_VERSION: 9.0
+        BUILD_CONFIGURATION: Release
+    container_name: hmailserver-gateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - CoreServiceUrl=http://core-engine:50051
+      - AIServiceUrl=http://ai-services:50052
+      - AutonomousServiceUrl=http://autonomous-service:50053
+      - DatabaseUrl=postgresql://hmailserver:${DB_PASSWORD:-hmailserver123}@database:5432/hmailserver
+      - RedisUrl=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/2
+      - JwtSecret=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - EnableSwagger=false
+      - EnableMetrics=true
+      - CorsOrigins=${CORS_ORIGINS:-http://localhost:3000,https://yourdomain.com}
+    volumes:
+      - gateway-logs:/app/logs
+    ports:
+      - "8080:8080"
+      - "9093:9093"  # Metrics port
+    networks:
+      - hmailserver-network
+    depends_on:
+      core-engine:
+        condition: service_healthy
+      ai-services:
+        condition: service_healthy
+      autonomous-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # Next.js Web Interface (Phase 4)
+  web-interface:
+    build:
+      context: ../Phase4_WebInterface
+      dockerfile: Dockerfile.production
+      args:
+        NODE_VERSION: 20-alpine
+        BUILD_ENV: production
+    container_name: hmailserver-web
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - NEXT_PUBLIC_WS_URL=ws://localhost:3000
+      - GATEWAY_URL=http://api-gateway:8080
+      - DATABASE_URL=postgresql://hmailserver:${DB_PASSWORD:-hmailserver123}@database:5432/hmailserver
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/3
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-your-next-auth-secret-change-in-production}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - ENABLE_ANALYTICS=true
+      - LOG_LEVEL=info
+    volumes:
+      - web-logs:/app/logs
+      - web-uploads:/app/public/uploads
+    ports:
+      - "3000:3000"
+      - "9094:9094"  # Metrics port
+    networks:
+      - hmailserver-network
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # Nginx Reverse Proxy & Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: hmailserver-nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx-logs:/var/log/nginx
+    ports:
+      - "80:80"
+      - "443:443"
+      - "25:25"    # SMTP
+      - "587:587"  # Submission
+      - "993:993"  # IMAPS
+      - "995:995"  # POP3S
+    networks:
+      - hmailserver-network
+    depends_on:
+      - web-interface
+      - api-gateway
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: hmailserver-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=90d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - hmailserver-network
+    restart: unless-stopped
+
+  # Visualization with Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: hmailserver-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3001:3000"
+    networks:
+      - hmailserver-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # Log Management with ELK Stack (Optional)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: hmailserver-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - hmailserver-network
+    restart: unless-stopped
+    profiles:
+      - elk
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: hmailserver-logstash
+    volumes:
+      - ./logging/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    ports:
+      - "5044:5044"
+    networks:
+      - hmailserver-network
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+    profiles:
+      - elk
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: hmailserver-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - hmailserver-network
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+    profiles:
+      - elk
+
+# Named volumes for persistent data
+volumes:
+  database-data:
+    driver: local
+  redis-data:
+    driver: local
+  core-data:
+    driver: local
+  core-logs:
+    driver: local
+  ai-models:
+    driver: local
+  ai-cache:
+    driver: local
+  ai-logs:
+    driver: local
+  autonomous-data:
+    driver: local
+  autonomous-logs:
+    driver: local
+  gateway-logs:
+    driver: local
+  web-logs:
+    driver: local
+  web-uploads:
+    driver: local
+  nginx-logs:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  elasticsearch-data:
+    driver: local
+
+# Networks
+networks:
+  hmailserver-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
