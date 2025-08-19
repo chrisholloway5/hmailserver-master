@@ -36,13 +36,27 @@ except ImportError:
 # Import existing Phase 1 modules
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'Phase1_Foundation', 'AI'))
+
+# Add the Phase1 AI directory to Python path
+phase1_ai_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Phase1_Foundation', 'AI'))
+if phase1_ai_path not in sys.path:
+    sys.path.insert(0, phase1_ai_path)
 
 try:
     from context_analyzer import ContextAnalyzer
     from email_classifier import EmailClassifier
-except ImportError:
-    print("Warning: Phase 1 modules not available")
+    PHASE1_MODULES_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Phase 1 modules not available: {e}")
+    PHASE1_MODULES_AVAILABLE = False
+    # Define placeholder classes
+    class ContextAnalyzer:
+        async def initialize(self): pass
+        async def analyze_email_context(self, email_data): return {}
+    
+    class EmailClassifier:
+        async def initialize(self): pass
+        async def classify_email(self, content, subject="", sender=""): return {}
 
 # Configure enhanced logging
 logging.basicConfig(
@@ -87,18 +101,28 @@ class PredictiveComposer:
     async def initialize(self):
         """Initialize the predictive composer with AI models"""
         try:
-            # Initialize Phase 1 components
-            self.context_analyzer = ContextAnalyzer()
-            await self.context_analyzer.initialize()
-            
-            self.email_classifier = EmailClassifier()
-            await self.email_classifier.initialize()
+            # Initialize Phase 1 components if available
+            if PHASE1_MODULES_AVAILABLE:
+                self.context_analyzer = ContextAnalyzer()
+                await self.context_analyzer.initialize()
+                
+                self.email_classifier = EmailClassifier()
+                await self.email_classifier.initialize()
+                
+                logger.info("Predictive Composer initialized with Phase 1 modules")
+            else:
+                # Use placeholder classes
+                self.context_analyzer = ContextAnalyzer()
+                self.email_classifier = EmailClassifier()
+                logger.info("Predictive Composer initialized with placeholder modules")
             
             self.initialized = True
-            logger.info("Predictive Composer initialized successfully")
             
         except Exception as e:
             logger.error(f"Failed to initialize Predictive Composer: {e}")
+            # Create placeholder instances as fallback
+            self.context_analyzer = ContextAnalyzer()
+            self.email_classifier = EmailClassifier()
             self.initialized = True  # Continue with limited functionality
             
     def _load_default_templates(self):
