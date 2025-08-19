@@ -386,13 +386,21 @@ Transform hMailServer into the world's first **Context-Aware Email Intelligence 
 
 ### 4.3 Azure Cloud-Native Deployment 🔄 **IN PROGRESS**
 
-**Azure Container Apps:**
-- **Serverless Containers** 🔄 - Fully managed container platform
-- **KEDA Autoscaling** 🔄 - Event-driven autoscaling integration
-- **Dapr Integration** 🔄 - Distributed application runtime for microservices
-- **Service Mesh** 🔄 - Istio-based service communication and security
-- **Blue-Green Deployment** 🔄 - Zero-downtime deployment strategies
-- **Canary Releases** 🔄 - Gradual rollout with traffic splitting
+**Azure App Service:**
+- **Native Windows Deployment** 🔄 - Direct Windows Server hosting without containers
+- **Application Service Plans** 🔄 - Dedicated compute resources for enterprise workloads
+- **Auto-scaling** 🔄 - Automatic scaling based on CPU, memory, and custom metrics
+- **Deployment Slots** 🔄 - Blue-green deployment with traffic splitting
+- **Custom Domains** 🔄 - Enterprise domain integration with SSL certificates
+- **Hybrid Connections** 🔄 - Secure connectivity to on-premises resources
+
+**Azure Virtual Machines:**
+- **Windows Server 2022** 🔄 - Latest server OS with enhanced security features
+- **Virtual Machine Scale Sets** 🔄 - Auto-scaling VM instances based on demand
+- **Availability Sets** 🔄 - High availability across fault and update domains
+- **Load Balancer** 🔄 - Layer 4 load balancing with health probes
+- **Application Gateway** 🔄 - Layer 7 application delivery controller
+- **Managed Disks** 🔄 - High-performance SSD storage with encryption
 
 **Azure SQL Database:**
 - **Hyperscale Tier** 🔄 - Highly scalable cloud database architecture
@@ -418,15 +426,23 @@ Transform hMailServer into the world's first **Context-Aware Email Intelligence 
 - **Compliance Manager** 🔄 - Risk assessment and compliance tracking
 - **Audit Logs** 🔄 - Comprehensive logging for compliance and forensics
 
-### 4.5 Modern Development and Testing 🔄 **IN PROGRESS**
+### 4.5 Native Windows Development and Testing 🔄 **IN PROGRESS**
 
 **GitHub Actions Integration:**
 - **C++23 Build Workflows** ✅ - Automated compilation with Visual Studio 2022
 - **Unit Testing** ✅ - Google Test for C++ and xUnit for .NET
-- **Integration Testing** 🔄 - End-to-end testing with Docker containers
+- **Integration Testing** 🔄 - End-to-end testing with Windows Server environments
 - **Security Scanning** 🔄 - CodeQL and dependency vulnerability scanning
 - **Performance Testing** 🔄 - Load testing with Azure Load Testing
-- **Deployment Automation** 🔄 - Infrastructure as Code with Bicep
+- **Deployment Automation** 🔄 - Infrastructure as Code with Bicep and ARM templates
+
+**Native Windows Deployment:**
+- **Windows Installer (MSI)** 🔄 - Native Windows installation packages
+- **Windows Service Integration** 🔄 - Native Windows service deployment
+- **PowerShell DSC** 🔄 - Desired State Configuration for automated setup
+- **Group Policy Integration** 🔄 - Enterprise policy management and configuration
+- **Windows Update Integration** 🔄 - Automatic updates through Windows Update
+- **SCCM/WSUS Support** 🔄 - Enterprise deployment and patch management
 
 **Quality Assurance:**
 - **SonarCloud Integration** 🔄 - Code quality and security analysis
@@ -555,13 +571,21 @@ Transform hMailServer into the world's first **Context-Aware Email Intelligence 
 
 ### Production Deployment Architecture
 
-**Containerization Strategy:**
-- **Docker with Windows containers** - Native Windows container support
-- **Azure Container Registry** - Private container image repository
-- **Azure Kubernetes Service** - Managed Kubernetes with Windows node pools
-- **Helm Charts** - Kubernetes application packaging and deployment
-- **Istio Service Mesh** - Advanced traffic management and security
-- **KEDA Autoscaling** - Event-driven horizontal pod autoscaling
+**Native Windows Deployment Strategy:**
+- **Windows Server 2022** - Direct native deployment without containerization
+- **IIS Integration** - Internet Information Services for web component hosting
+- **Windows Service** - Native Windows service architecture for email processing
+- **MSI Installer** - Professional Windows installer packages for enterprise deployment
+- **Windows Update** - Automatic updates through native Windows mechanisms
+- **Enterprise Management** - Group Policy and SCCM integration for large-scale deployment
+
+**High Availability Architecture:**
+- **Network Load Balancer** - Windows Server Network Load Balancing for traffic distribution
+- **Failover Clustering** - Windows Server Failover Clustering for high availability
+- **Always On Availability Groups** - SQL Server Always On for database high availability
+- **DFS Replication** - Distributed File System for configuration and data replication
+- **PowerShell DSC** - Desired State Configuration for automated setup and maintenance
+- **System Center** - Enterprise monitoring and management with SCOM and SCCM
 
 **Security and Compliance:**
 - **Windows Server 2022** - Latest server OS with enhanced security features
@@ -588,18 +612,20 @@ Transform hMailServer into the world's first **Context-Aware Email Intelligence 
 - **Cloud Development**: Azure Dev Environments for consistent development
 
 ### Enterprise Readiness
-- **Scalability**: Cloud-native architecture with automatic scaling
-- **Reliability**: Built-in health checks and self-healing capabilities
-- **Security**: Zero-trust architecture with defense in depth
-- **Compliance**: Built-in audit trails and compliance reporting
-- **Monitoring**: Comprehensive observability with Azure Monitor
-- **Support**: Enterprise-grade support through Microsoft Premier
 
-This ultra-modern technology foundation positions hMailServer as the most advanced email platform built on Microsoft's latest technology stack, ready for enterprise deployment and global scale.
+- **Scalability**: Native Windows architecture with automatic scaling via Azure VM Scale Sets
+- **Reliability**: Built-in health checks and self-healing capabilities with Windows services
+- **Security**: Zero-trust architecture with defense in depth using native Windows security
+- **Compliance**: Built-in audit trails and compliance reporting through Windows Event Logs
+- **Monitoring**: Comprehensive observability with Azure Monitor and System Center Operations Manager
+- **Support**: Enterprise-grade support through Microsoft Premier and native Windows administration
+
+This ultra-modern technology foundation positions hMailServer as the most advanced email platform built on Microsoft's latest technology stack, deployed natively on Windows Server without container dependencies, ready for enterprise deployment and global scale.
 
 ---
 
 *Last Updated: August 19, 2025*  
 *Technology Stack: C++23, .NET 8, Azure Cloud, Windows Server 2022*  
 *Development Environment: Visual Studio 2022 with AI assistance*  
-*Status: Modern foundation complete, production deployment in progress*
+*Deployment Strategy: Native Windows Server deployment without Docker containers*  
+*Status: Modern foundation complete, native Windows production deployment in progress*
