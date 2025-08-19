@@ -1,17 +1,39 @@
 """
-Predictive Email Composition Engine for hMailServer Phase 2
-AI-assisted email writing with context awareness and intelligent suggestions
+hMailServer Phase 2 Intelligence - Predictive Email Composer
+Modern AI-powered email composition with context awareness and GPT-4o integration
+Copyright (c) 2025 hMailServer Development Team
+Version: 2025.1.0 - Enhanced with latest AI models
 """
 
 import asyncio
 import logging
-from typing import Dict, List, Optional, Tuple
 import json
-from datetime import datetime
+import time
+from datetime import datetime, timezone
+from typing import Dict, List, Optional, Tuple, Any
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
+from pathlib import Path
 
-# Import existing modules
+# Modern AI/ML imports
+try:
+    import torch
+    import torch.nn as nn
+    import transformers
+    from transformers import (
+        AutoTokenizer, AutoModelForCausalLM, 
+        AutoModelForSequenceClassification, pipeline
+    )
+    import numpy as np
+    from sentence_transformers import SentenceTransformer
+    import openai
+    from openai import AsyncOpenAI
+    ADVANCED_AI_AVAILABLE = True
+except ImportError:
+    ADVANCED_AI_AVAILABLE = False
+    print("Warning: Advanced AI libraries not available. Install with: pip install torch transformers sentence-transformers openai")
+
+# Import existing Phase 1 modules
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'Phase1_Foundation', 'AI'))
@@ -22,6 +44,11 @@ try:
 except ImportError:
     print("Warning: Phase 1 modules not available")
 
+# Configure enhanced logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 @dataclass
