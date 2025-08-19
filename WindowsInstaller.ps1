@@ -1,5 +1,16 @@
 # hMailServer Autonomous Edition - Windows Native Installer
+# Primary Deployment: Windows Server | Optional: Azure Cloud
 # WiX Toolset Configuration for MSI Package Creation
+
+# Installation Type Selection
+param(
+    [Parameter(Mandatory=$false)]
+    [ValidateSet("WindowsServer", "Azure")]
+    [string]$DeploymentTarget = "WindowsServer"
+)
+
+Write-Host "hMailServer Autonomous Edition Installer" -ForegroundColor Green
+Write-Host "Target Deployment: $DeploymentTarget" -ForegroundColor Yellow
 
 # Product Information
 $ProductName = "hMailServer Autonomous Edition"
@@ -43,8 +54,8 @@ $Components = @{
     "Database" = @{
         "Path" = "database\*"
         "Type" = "DatabaseScript"
-        "Engines" = @("SqlServer", "MySQL", "PostgreSQL")
-        "Description" = "Database schemas and migration scripts"
+        "Engines" = @("SqlServer", "MySQL", "MariaDB", "PostgreSQL")
+        "Description" = "Database schemas and migration scripts for all supported engines"
     }
     
     # Configuration Files
@@ -64,6 +75,63 @@ $Components = @{
     }
 }
 
+# Multi-Database Engine Configuration
+$DatabaseEngines = @{
+    "SqlServer" = @{
+        "DisplayName" = "Microsoft SQL Server"
+        "ConnectionString" = "Server=localhost;Database=hMailServerAutonomous;Integrated Security=true"
+        "Provider" = "Microsoft.EntityFrameworkCore.SqlServer"
+        "Features" = @("Always Encrypted", "Temporal Tables", "In-Memory OLTP", "JSON Support", "AI Integration")
+        "Recommended" = $true
+        "ServiceDependency" = "MSSQLSERVER"
+        "DefaultPort" = 1433
+    }
+    
+    "MySQL" = @{
+        "DisplayName" = "MySQL Database Server"
+        "ConnectionString" = "Server=localhost;Database=hMailServerAutonomous;Uid=hmailserver;Pwd=SecurePassword123!;CharSet=utf8mb4"
+        "Provider" = "Pomelo.EntityFrameworkCore.MySql"
+        "Features" = @("JSON Support", "Full-Text Search", "GIS Support", "Partitioning", "InnoDB Cluster")
+        "Recommended" = $false
+        "ServiceDependency" = "MySQL80"
+        "DefaultPort" = 3306
+    }
+    
+    "MariaDB" = @{
+        "DisplayName" = "MariaDB Server"
+        "ConnectionString" = "Server=localhost;Database=hMailServerAutonomous;Uid=hmailserver;Pwd=SecurePassword123!;CharSet=utf8mb4"
+        "Provider" = "Pomelo.EntityFrameworkCore.MySql"
+        "Features" = @("Aria Storage Engine", "ColumnStore", "Galera Cluster", "ThreadPool", "MaxScale Integration")
+        "Recommended" = $false
+        "ServiceDependency" = "mariadb"
+        "DefaultPort" = 3306
+    }
+    
+    "PostgreSQL" = @{
+        "DisplayName" = "PostgreSQL Database"
+        "ConnectionString" = "Host=localhost;Database=hMailServerAutonomous;Username=hmailserver;Password=SecurePassword123!;Include Error Detail=true"
+        "Provider" = "Npgsql.EntityFrameworkCore.PostgreSQL"
+        "Features" = @("JSONB Support", "Full-Text Search", "PostGIS", "Advanced Indexing", "Parallel Queries")
+        "Recommended" = $false
+        "ServiceDependency" = "postgresql-x64-14"
+        "DefaultPort" = 5432
+    }
+}
+
+# Default database selection (can be changed during installation)
+$DefaultDatabaseEngine = "SqlServer"
+$SelectedDatabaseEngine = $DefaultDatabaseEngine
+
+# Database-specific configuration
+$DatabaseConfiguration = @{
+    "CreateDatabase" = $true
+    "RunMigrations" = $true
+    "CreateUser" = $true
+    "SetPermissions" = $true
+    "EnableBackup" = $true
+    "OptimizePerformance" = $true
+}
+
 # Windows Services Configuration
 $Services = @{
     "hMailServerCore" = @{
@@ -71,7 +139,7 @@ $Services = @{
         "Description" = "Core email processing service with autonomous capabilities"
         "StartType" = "Automatic"
         "Account" = "LocalSystem"
-        "Dependencies" = @("MSSQLSERVER", "W3SVC")
+        "Dependencies" = @("W3SVC")  # Removed database-specific dependency for multi-engine support
     }
     
     "hMailServerAI" = @{
